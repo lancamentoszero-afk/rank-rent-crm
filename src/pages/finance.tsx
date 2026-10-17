@@ -140,6 +140,7 @@ finance.get('/', async (c) => {
     const { results: siteList } = await db.prepare('SELECT id, domain FROM sites ORDER BY domain').all<{ id: number; domain: string }>()
     const cf = c.req.query('site') ?? ''
     const shown = costs.filter((x) => (cf === '' ? true : cf === 'geral' ? x.site_id === null : String(x.site_id) === cf))
+    const ed = costs.find((x) => String(x.id) === c.req.query('editar')) ?? null
     const shownYear = sumBy(shown.map((x) => ({ cur: x.currency, v: x.period === 'mes' ? x.amount * 12 : x.amount })))
     body = (
       <>
@@ -154,6 +155,22 @@ finance.get('/', async (c) => {
           </label>
           {cf ? <p class="sub" style="margin:0">Total por ano desta seleção: <strong>{shownYear}</strong></p> : null}
         </form>
+        {ed ? (
+          <section class="card" id="editar" aria-label="Editar custo" style="border-color:#1F5C4A">
+            <h2>Editar custo</h2>
+            <form method="post" action={`/financeiro/custos/${ed.id}`} class="form">
+              <input type="hidden" name="filtro" value={cf} />
+              <label class="f">Site<select name="site_id"><option value="">Geral (todos os sites)</option>{siteList.map((s) => <option value={s.id} selected={ed.site_id === s.id}>{s.domain}</option>)}</select></label>
+              <label class="f">Item<input name="item" value={ed.item} required /></label>
+              <label class="f">Valor<input name="amount" value={String(ed.amount)} required inputmode="decimal" /></label>
+              <label class="f">Moeda<select name="currency"><option selected={ed.currency === 'EUR'}>EUR</option><option selected={ed.currency === 'USD'}>USD</option></select></label>
+              <label class="f">Período<select name="period"><option value="ano" selected={ed.period === 'ano'}>Anual</option><option value="mes" selected={ed.period === 'mes'}>Mensal</option></select></label>
+              <label class="f">Renova em<input type="date" name="renews_on" value={ed.renews_on ?? ''} /></label>
+              <label class="f">Fornecedor<input name="provider" value={ed.provider ?? ''} /></label>
+              <div class="full row-actions"><button class="btn pri" type="submit">Guardar alterações</button><a class="btn" href={`/financeiro?t=custos&site=${cf}`}>Cancelar</a></div>
+            </form>
+          </section>
+        ) : null}
         <section class="card flush" aria-label="Custos">
           <div class="tbl"><table>
             <thead><tr><th>Site</th><th>Item</th><th class="num">Valor</th><th>Período</th><th class="num">Por ano</th><th>Renova</th><th>Fornecedor</th><th></th></tr></thead>
@@ -162,7 +179,7 @@ finance.get('/', async (c) => {
                 <tr><td>{x.domain ? <a href={`/financeiro?t=custos&site=${x.site_id}`}>{x.domain}</a> : 'Geral'}</td><td>{x.item}</td><td class="num">{money(x.amount, x.currency)}</td><td>{x.period === 'mes' ? 'Mensal' : 'Anual'}</td>
                   <td class="num">{money(x.period === 'mes' ? x.amount * 12 : x.amount, x.currency)}</td>
                   <td>{x.renews_on && x.renews_on <= addDays(today, 30) ? <Chip cls="c-warn">{fmtDate(x.renews_on)}</Chip> : fmtDate(x.renews_on)}</td><td>{x.provider ?? '—'}</td>
-                  <td><form method="post" action={`/financeiro/custos/${x.id}/apagar`} class="inline" onsubmit="return confirm('Apagar este custo?')"><input type="hidden" name="site" value={cf} /><button class="btn sm danger" type="submit">Apagar</button></form></td></tr>
+                  <td style="display:flex;gap:6px"><a class="btn sm" href={`/financeiro?t=custos&site=${cf}&editar=${x.id}#editar`}>Editar</a><form method="post" action={`/financeiro/custos/${x.id}/apagar`} class="inline" onsubmit="return confirm('Apagar este custo?')"><input type="hidden" name="site" value={cf} /><button class="btn sm danger" type="submit">Apagar</button></form></td></tr>
               ))}
             </tbody>
           </table></div>
@@ -224,6 +241,18 @@ finance.post('/custos', async (c) => {
     .run()
   await audit(c, `Acrescentou custo "${f.item}"`, 'cost')
   return back(c, `/financeiro?t=custos${f.site_id ? `&site=${f.site_id}` : ''}`, 'Custo acrescentado.')
+})
+
+finance.post('/custos/:id{[0-9]+}', async (c) => {
+  const id = Number(c.req.param('id'))
+  const f = await form(c)
+  const amount = toNum(f.amount)
+  if (!f.item || amount === null) return back(c, '/financeiro?t=custos')
+  await c.env.DB.prepare('UPDATE costs SET site_id=?, item=?, amount=?, currency=?, period=?, renews_on=?, provider=? WHERE id = ?')
+    .bind(toNum(f.site_id), f.item, amount, f.currency ?? 'EUR', f.period ?? 'ano', f.renews_on, f.provider, id)
+    .run()
+  await audit(c, `Editou o custo "${f.item}"`, 'cost', id)
+  return back(c, `/financeiro?t=custos${f.filtro && /^(\d+|geral)$/.test(f.filtro) ? `&site=${f.filtro}` : ''}`, 'Custo atualizado.')
 })
 
 finance.post('/custos/:id{[0-9]+}/apagar', async (c) => {
