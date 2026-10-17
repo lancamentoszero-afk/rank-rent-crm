@@ -63,7 +63,7 @@ details.box[open] summary{margin-bottom:12px}
 .alert{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line2);font-size:13px}
 .alert:last-child{border:0}
 .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:0 0 8px}
-.bar{height:8px;border-radius:4px;background:var(--line2);overflow:hidden;min-width:80px}
+.bar{height:8px;border-radius:4px;background:var(--line2);overflow:hidden;min-width:40px}
 .bar span{display:block;height:100%;background:var(--accent)}
 .flash{background:#E6F2EA;border:1px solid #B9D9C5;color:#1F5C3C;padding:10px 14px;border-radius:6px;font-size:13px}
 .flash.err{background:#F8E3D6;border-color:#E9C2AB;color:#8A3410}

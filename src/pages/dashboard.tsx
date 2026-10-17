@@ -201,7 +201,7 @@ dashboard.get('/', async (c) => {
         </section>
       </div>
 
-      {money_ && money_.history.size ? (
+      {money_ && [...money_.history.values()].some((d) => d.some((x) => x.value > 0)) ? (
         <div class="grid2">
           {[...money_.history.entries()].map(([cur, data]) => (
             <section class="card" aria-label={`Faturação por mês em ${cur}`}>
