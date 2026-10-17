@@ -138,7 +138,16 @@ partners.get('/', async (c) => {
             ) : null}
 
             <div class="sec">Sites</div>
-            {sel.sitesOf.map((s) => <div class="kv"><a href={`/sites/${s.id}`}>{s.domain}</a></div>)}
+            {sel.sitesOf.map((s) => (
+              <div class="kv" style="align-items:center">
+                <a href={`/sites/${s.id}`}>{s.domain}</a>
+                {isAdmin ? (
+                  <form method="post" action={`/parceiros/${sel.id}/sites/${s.id}/retirar`} class="inline" onsubmit={`return confirm('Retirar ${s.domain} deste parceiro? O site passa a Pausado e as leads novas deixam de lhe ser faturadas.')`}>
+                    <button class="btn sm danger" type="submit">Retirar</button>
+                  </form>
+                ) : null}
+              </div>
+            ))}
             {!sel.sitesOf.length ? <p class="empty">Sem sites. Atribua o parceiro na ficha do site.</p> : null}
 
             <div class="sec">Trabalhos fechados reportados</div>
@@ -263,6 +272,17 @@ partners.post('/:id{[0-9]+}/acordo', async (c) => {
     .run()
   await audit(c, `Novo acordo: ${MODEL_LABEL[model]}`, 'partner', id)
   return back(c, `/parceiros?sel=${id}`, 'Acordo criado.')
+})
+
+partners.post('/:id{[0-9]+}/sites/:sid{[0-9]+}/retirar', async (c) => {
+  if (c.get('user').role !== 'admin') return c.text('Só o administrador.', 403)
+  const id = Number(c.req.param('id'))
+  const sid = Number(c.req.param('sid'))
+  const s = await c.env.DB.prepare('SELECT domain FROM sites WHERE id = ? AND partner_id = ?').bind(sid, id).first<{ domain: string }>()
+  if (!s) return back(c, `/parceiros?sel=${id}`)
+  await c.env.DB.prepare("UPDATE sites SET partner_id = NULL, status = CASE status WHEN 'alugado' THEN 'pausado' ELSE status END WHERE id = ?").bind(sid).run()
+  await audit(c, `Retirou ${s.domain} do parceiro`, 'partner', id)
+  return back(c, `/parceiros?sel=${id}`, `${s.domain} retirado. Passou a Pausado.`)
 })
 
 partners.post('/:id{[0-9]+}/trabalhos', async (c) => {

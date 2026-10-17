@@ -47,6 +47,14 @@ async function seoSummary(db: D1Database, siteId: number, days = 28) {
   return { clicks: null, imp: null, pos: m?.position ?? null, ctr: null, src: m ? ('manual' as const) : null, date: m?.date }
 }
 
+/** Estado acompanha o parceiro: atribuir parceiro → Alugado; tirar o parceiro de um site alugado → Pausado */
+export function autoStatus(requested: string, oldPartner: number | null, newPartner: number | null): string {
+  if (newPartner && !oldPartner) return 'alugado'
+  if (!newPartner && oldPartner && requested === 'alugado') return 'pausado'
+  if (!newPartner && requested === 'alugado') return 'pausado'
+  return requested
+}
+
 // ---------------- Lista ----------------
 sites.get('/', async (c) => {
   const db = c.env.DB
@@ -143,7 +151,7 @@ sites.post('/', async (c) => {
   const r = await c.env.DB.prepare(
     `INSERT INTO sites (domain, niche, city, country, status, partner_id, created_on, gsc_property, form_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
-    .bind(domain, f.niche, f.city, f.country ?? 'PT', f.status ?? 'construcao', toNum(f.partner_id), f.created_on, `sc-domain:${domain}`, randomKey())
+    .bind(domain, f.niche, f.city, f.country ?? 'PT', autoStatus(f.status ?? 'construcao', null, toNum(f.partner_id)), toNum(f.partner_id), f.created_on, `sc-domain:${domain}`, randomKey())
     .run()
   await audit(c, `Criou o site ${domain}`, 'site', r.meta.last_row_id)
   return back(c, `/sites/${r.meta.last_row_id}`, 'Site criado.')
@@ -383,11 +391,14 @@ document.getElementById('lead-form').addEventListener('submit', function () {
 sites.post('/:id{[0-9]+}', async (c) => {
   const id = Number(c.req.param('id'))
   const f = await form(c)
+  const old = await c.env.DB.prepare('SELECT partner_id, status FROM sites WHERE id = ?').bind(id).first<{ partner_id: number | null; status: string }>()
+  const newPartner = toNum(f.partner_id)
+  const status = autoStatus(f.status ?? old?.status ?? 'construcao', old?.partner_id ?? null, newPartner)
   await c.env.DB.prepare(
     `UPDATE sites SET domain=?, niche=?, city=?, country=?, status=?, partner_id=?, created_on=?, domain_renews_on=?, tracking_number=?,
      forward_to=?, gsc_property=?, drive_url=?, whisper=?, notes=? WHERE id = ?`
   )
-    .bind(f.domain, f.niche, f.city, f.country ?? 'PT', f.status ?? 'construcao', toNum(f.partner_id), f.created_on, f.domain_renews_on,
+    .bind(f.domain, f.niche, f.city, f.country ?? 'PT', status, newPartner, f.created_on, f.domain_renews_on,
       f.tracking_number, f.forward_to, f.gsc_property, f.drive_url, f.whisper, f.notes, id)
     .run()
   await audit(c, `Editou o site ${f.domain}`, 'site', id)
