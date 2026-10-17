@@ -9,7 +9,7 @@
       "binding": "DB",
       "database_name": "rank-rent-crm",
       // Substituir pelo ID que o comando `wrangler d1 create rank-rent-crm` devolver
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "9b8d17a1-53e6-4393-be81-1ee55c6a0c40",
       "migrations_dir": "migrations"
     }
   ],
