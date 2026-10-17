@@ -39,7 +39,11 @@ Sem este passo a app responde "Sem acesso" a toda a gente, o que é o comportame
    - Domínio: `rank-rent-crm.<a-tua-conta>.workers.dev`
    - Política **Allow** › Include › *Emails* › `lancamentoszero@gmail.com`
    - Login method: *One-time PIN* (código por email) ou Google.
-3. Na mesma aplicação, acrescenta uma segunda política, **Bypass** › Include › *Everyone*, só para o caminho `/hooks/*`. É por aí que entram os formulários dos sites, e esse caminho está protegido pela chave de cada site.
+3. Cria uma **segunda** aplicação Self-hosted, só para os formulários:
+   - Domínio: o mesmo, com **Path** `hooks`
+   - Política **Bypass** › Include › *Everyone*
+
+   É por aí que entram os formulários dos sites. Esse caminho fica protegido pela chave de cada site, e o Access aplica sempre a aplicação com o caminho mais específico.
 4. Copia dois valores e põe-nos em `wrangler.jsonc` (ou manda-mos):
    - `ACCESS_TEAM_DOMAIN`: ex. `fabio.cloudflareaccess.com` (Zero Trust › Settings › Custom Pages)
    - `ACCESS_AUD`: o *Application Audience (AUD) Tag* da aplicação (Overview da aplicação)
