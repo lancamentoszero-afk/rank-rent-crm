@@ -245,7 +245,7 @@ sites.get('/:id{[0-9]+}', async (c) => {
           <div><span>Parceiro</span>{s.partner_id ? <a href={`/parceiros?sel=${s.partner_id}`}>{s.partner_name}</a> : 'Sem parceiro'}</div>
           <div><span>Número de tracking</span>{s.tracking_number ?? '—'}</div>
           <div><span>Encaminha para</span>{s.forward_to ?? '—'}</div>
-          <div><span>Custo por ano</span>{yearly.size ? [...yearly.entries()].map(([k, v]) => money(v, k)).join(' + ') : '—'}</div>
+          {c.get('user').role === 'admin' ? <div><span>Custo por ano</span>{yearly.size ? [...yearly.entries()].map(([k, v]) => money(v, k)).join(' + ') : '—'} · <a href={`/financeiro?t=custos&site=${id}`}>{yearly.size ? 'ver custos' : 'acrescentar'}</a></div> : null}
           <div><span>Domínio renova</span>{fmtDate(s.domain_renews_on)}</div>
           <div><span>Pasta na Drive</span>{s.drive_url ? <a href={s.drive_url} target="_blank" rel="noopener">Abrir</a> : '—'}</div>
         </div>
@@ -328,29 +328,6 @@ sites.get('/:id{[0-9]+}', async (c) => {
           <a class="btn" href={`/calculadora?site=${id}`} style="margin-top:10px">Abrir calculadora</a>
         </section>
       </div>
-
-      <section class="card" aria-label="Custos">
-        <h2>Custos do site</h2>
-        <div class="tbl"><table>
-          <thead><tr><th>Item</th><th class="num">Valor</th><th>Período</th><th>Renova</th><th>Fornecedor</th><th></th></tr></thead>
-          <tbody>
-            {costs.map((x) => (
-              <tr><td>{x.item}</td><td class="num">{money(x.amount, x.currency)}</td><td>{x.period === 'mes' ? 'Mensal' : 'Anual'}</td><td>{fmtDate(x.renews_on)}</td><td>{x.provider ?? '—'}</td>
-                <td><form method="post" action={`/sites/${id}/custos/${x.id}/apagar`} class="inline"><button class="btn sm danger" type="submit">Apagar</button></form></td></tr>
-            ))}
-          </tbody>
-        </table></div>
-        <form method="post" action={`/sites/${id}/custos`} class="form" style="margin-top:12px">
-          <label class="f">Item<input name="item" required placeholder="Domínio, alojamento, número…" /></label>
-          <label class="f">Valor<input name="amount" required inputmode="decimal" /></label>
-          <label class="f">Moeda<select name="currency"><option>EUR</option><option>USD</option></select></label>
-          <label class="f">Período<select name="period"><option value="ano">Anual</option><option value="mes">Mensal</option></select></label>
-          <label class="f">Renova em<input type="date" name="renews_on" /></label>
-          <label class="f">Fornecedor<input name="provider" /></label>
-          <div class="full"><button class="btn" type="submit">+ Acrescentar custo</button></div>
-        </form>
-      </section>
-
       <details class="box">
         <summary>Editar dados do site</summary>
         <form method="post" action={`/sites/${id}`} class="form">
@@ -403,25 +380,6 @@ sites.post('/:id{[0-9]+}', async (c) => {
     .run()
   await audit(c, `Editou o site ${f.domain}`, 'site', id)
   return back(c, `/sites/${id}`, 'Alterações guardadas.')
-})
-
-sites.post('/:id{[0-9]+}/custos', async (c) => {
-  const id = Number(c.req.param('id'))
-  const f = await form(c)
-  const amount = toNum(f.amount)
-  if (!f.item || amount === null) return back(c, `/sites/${id}`)
-  await c.env.DB.prepare('INSERT INTO costs (site_id, item, amount, currency, period, renews_on, provider) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .bind(id, f.item, amount, f.currency ?? 'EUR', f.period ?? 'ano', f.renews_on, f.provider)
-    .run()
-  await audit(c, `Acrescentou custo "${f.item}"`, 'site', id)
-  return back(c, `/sites/${id}`, 'Custo acrescentado.')
-})
-
-sites.post('/:id{[0-9]+}/custos/:cid{[0-9]+}/apagar', async (c) => {
-  const id = Number(c.req.param('id'))
-  await c.env.DB.prepare('DELETE FROM costs WHERE id = ? AND site_id = ?').bind(Number(c.req.param('cid')), id).run()
-  await audit(c, 'Apagou um custo', 'site', id)
-  return back(c, `/sites/${id}`, 'Custo apagado.')
 })
 
 export { activeAgreement, seoSummary }

@@ -138,26 +138,40 @@ finance.get('/', async (c) => {
     )
   } else {
     const { results: siteList } = await db.prepare('SELECT id, domain FROM sites ORDER BY domain').all<{ id: number; domain: string }>()
+    const cf = c.req.query('site') ?? ''
+    const shown = costs.filter((x) => (cf === '' ? true : cf === 'geral' ? x.site_id === null : String(x.site_id) === cf))
+    const shownYear = sumBy(shown.map((x) => ({ cur: x.currency, v: x.period === 'mes' ? x.amount * 12 : x.amount })))
     body = (
       <>
+        <form method="get" action="/financeiro" class="filters">
+          <input type="hidden" name="t" value="custos" />
+          <label class="f">Mostrar
+            <select name="site" onchange="this.form.submit()">
+              <option value="" selected={cf === ''}>Todos</option>
+              <option value="geral" selected={cf === 'geral'}>Geral / outros</option>
+              {siteList.map((s) => <option value={s.id} selected={cf === String(s.id)}>{s.domain}</option>)}
+            </select>
+          </label>
+          {cf ? <p class="sub" style="margin:0">Total por ano desta seleção: <strong>{shownYear}</strong></p> : null}
+        </form>
         <section class="card flush" aria-label="Custos">
           <div class="tbl"><table>
             <thead><tr><th>Site</th><th>Item</th><th class="num">Valor</th><th>Período</th><th class="num">Por ano</th><th>Renova</th><th>Fornecedor</th><th></th></tr></thead>
             <tbody>
-              {costs.map((x) => (
-                <tr><td>{x.domain ?? 'Geral'}</td><td>{x.item}</td><td class="num">{money(x.amount, x.currency)}</td><td>{x.period === 'mes' ? 'Mensal' : 'Anual'}</td>
+              {shown.map((x) => (
+                <tr><td>{x.domain ? <a href={`/financeiro?t=custos&site=${x.site_id}`}>{x.domain}</a> : 'Geral'}</td><td>{x.item}</td><td class="num">{money(x.amount, x.currency)}</td><td>{x.period === 'mes' ? 'Mensal' : 'Anual'}</td>
                   <td class="num">{money(x.period === 'mes' ? x.amount * 12 : x.amount, x.currency)}</td>
                   <td>{x.renews_on && x.renews_on <= addDays(today, 30) ? <Chip cls="c-warn">{fmtDate(x.renews_on)}</Chip> : fmtDate(x.renews_on)}</td><td>{x.provider ?? '—'}</td>
-                  <td><form method="post" action={`/financeiro/custos/${x.id}/apagar`} class="inline"><button class="btn sm danger" type="submit">Apagar</button></form></td></tr>
+                  <td><form method="post" action={`/financeiro/custos/${x.id}/apagar`} class="inline" onsubmit="return confirm('Apagar este custo?')"><input type="hidden" name="site" value={cf} /><button class="btn sm danger" type="submit">Apagar</button></form></td></tr>
               ))}
             </tbody>
           </table></div>
-          {!costs.length ? <p class="empty">Sem custos registados.</p> : null}
+          {!shown.length ? <p class="empty">Sem custos registados{cf ? ' nesta seleção' : ''}.</p> : null}
         </section>
-        <details class="box">
+        <details class="box" open={c.req.query('novo') === '1'}>
           <summary>+ Acrescentar custo</summary>
           <form method="post" action="/financeiro/custos" class="form">
-            <label class="f">Site<select name="site_id"><option value="">Geral (todos os sites)</option>{siteList.map((s) => <option value={s.id}>{s.domain}</option>)}</select></label>
+            <label class="f">Site<select name="site_id"><option value="">Geral (todos os sites)</option>{siteList.map((s) => <option value={s.id} selected={cf === String(s.id)}>{s.domain}</option>)}</select></label>
             <label class="f">Item<input name="item" required placeholder="Alojamento, plataforma de call tracking…" /></label>
             <label class="f">Valor<input name="amount" required inputmode="decimal" /></label>
             <label class="f">Moeda<select name="currency"><option>EUR</option><option>USD</option></select></label>
@@ -209,11 +223,12 @@ finance.post('/custos', async (c) => {
     .bind(toNum(f.site_id), f.item, amount, f.currency ?? 'EUR', f.period ?? 'ano', f.renews_on, f.provider)
     .run()
   await audit(c, `Acrescentou custo "${f.item}"`, 'cost')
-  return back(c, '/financeiro?t=custos', 'Custo acrescentado.')
+  return back(c, `/financeiro?t=custos${f.site_id ? `&site=${f.site_id}` : ''}`, 'Custo acrescentado.')
 })
 
 finance.post('/custos/:id{[0-9]+}/apagar', async (c) => {
+  const f = await form(c)
   await c.env.DB.prepare('DELETE FROM costs WHERE id = ?').bind(Number(c.req.param('id'))).run()
   await audit(c, 'Apagou um custo', 'cost')
-  return back(c, '/financeiro?t=custos', 'Custo apagado.')
+  return back(c, `/financeiro?t=custos${f.site && /^(\d+|geral)$/.test(f.site) ? `&site=${f.site}` : ''}`, 'Custo apagado.')
 })
