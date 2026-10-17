@@ -4,6 +4,9 @@
   "main": "src/index.tsx",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  // Sem endereços de pré-visualização: só existe a versão em produção, protegida pelo Access
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
