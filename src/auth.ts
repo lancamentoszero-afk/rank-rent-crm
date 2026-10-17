@@ -42,8 +42,11 @@ export async function verifyAccessJwt(token: string, env: Env): Promise<string |
   if (!ok) return null
   const now = Math.floor(Date.now() / 1000)
   if (payload.exp && payload.exp < now) return null
-  const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
-  if (!aud.includes(env.ACCESS_AUD)) return null
+  // O AUD é opcional: sem ele, aceita tokens de qualquer aplicação da tua própria equipa do Access
+  if (env.ACCESS_AUD) {
+    const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud]
+    if (!aud.includes(env.ACCESS_AUD)) return null
+  }
   if (payload.iss && payload.iss !== `https://${env.ACCESS_TEAM_DOMAIN}`) return null
   return typeof payload.email === 'string' ? payload.email.toLowerCase() : null
 }
@@ -53,7 +56,7 @@ export async function resolveUser(req: Request, env: Env): Promise<User | null> 
   if (env.DEV_USER) {
     email = env.DEV_USER.toLowerCase()
   } else {
-    if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) return null
+    if (!env.ACCESS_TEAM_DOMAIN) return null
     const token = req.headers.get('cf-access-jwt-assertion')
     if (!token) return null
     try {
