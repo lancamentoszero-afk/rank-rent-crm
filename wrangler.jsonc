@@ -20,9 +20,9 @@
   "triggers": { "crons": ["15 6 * * *"] },
   "vars": {
     // Domínio da equipa do Cloudflare Access, ex: "fabio.cloudflareaccess.com"
-    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_TEAM_DOMAIN": "lancamentoszero.cloudflareaccess.com",
     // "Application Audience (AUD) Tag" da aplicação no Cloudflare Access
-    "ACCESS_AUD": "",
+    "ACCESS_AUD": "182c663974dddd2e433d9fa794f8541a1d397244adbe2c6e6dbf21438a7fdf7d",
     // Email do administrador (entra sempre, mesmo sem estar na tabela de utilizadores)
     "ADMIN_EMAIL": "lancamentoszero@gmail.com"
   }
