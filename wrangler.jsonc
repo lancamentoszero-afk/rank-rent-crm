@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rank-rent-crm",
+  "main": "src/index.tsx",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "rank-rent-crm",
+      // Substituir pelo ID que o comando `wrangler d1 create rank-rent-crm` devolver
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Busca diária ao Search Console (06:15 UTC)
+  "triggers": { "crons": ["15 6 * * *"] },
+  "vars": {
+    // Domínio da equipa do Cloudflare Access, ex: "fabio.cloudflareaccess.com"
+    "ACCESS_TEAM_DOMAIN": "",
+    // "Application Audience (AUD) Tag" da aplicação no Cloudflare Access
+    "ACCESS_AUD": "",
+    // Email do administrador (entra sempre, mesmo sem estar na tabela de utilizadores)
+    "ADMIN_EMAIL": "lancamentoszero@gmail.com"
+  }
+  // Segredos (não ficam aqui): GSC_SERVICE_ACCOUNT  ->  npx wrangler secret put GSC_SERVICE_ACCOUNT
+}
